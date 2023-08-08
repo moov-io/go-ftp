@@ -1,0 +1,21 @@
+# generated-from:1d9b3d94f4b0f679e8204c4f14fd573e2c00d860e17d10925ff98c096101bc5e DO NOT REMOVE, DO UPDATE
+
+version: '3.7'
+
+services:
+  ftp:
+    image: moov/fsftp:v0.2.0
+    ports:
+      - "2121:2121"
+      - "30000-30009:30000-30009"
+    volumes:
+      - "./testdata/ftp-server:/data"
+    command:
+      - "-host=0.0.0.0"
+      - "-root=/data"
+      - "-user=admin"
+      - "-pass=123456"
+      - "-passive-ports=30000-30009"
+
+networks:
+  intranet: {}
