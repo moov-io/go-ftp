@@ -1,12 +1,9 @@
 [![Moov Banner Logo](https://user-images.githubusercontent.com/20115216/104214617-885b3c80-53ec-11eb-8ce0-9fc745fb5bfc.png)](https://github.com/moov-io)
 
 <p align="center">
-  <a href="https://moov-io.github.io/go-ftp/">Project Documentation</a>
-  ·
   <a href="https://slack.moov.io/">Community</a>
   ·
   <a href="https://moov.io/blog/">Blog</a>
-  <br>
   <br>
 </p>
 
@@ -24,7 +21,7 @@
 
 Moov's mission is to give developers an easy way to create and integrate bank processing into their own software products. Our open source projects are each focused on solving a single responsibility in financial services and designed around performance, scalability, and ease of use.
 
-Go FTP provides a simple FTP [client interface](https://github.com/moov-io/go-ftp/blob/master/client.go) for uploading, listing, and opening files on an FTP server.
+Go FTP provides a simple FTP [client interface](https://pkg.go.dev/github.com/moov-io/go-ftp#Client) for uploading, listing, and opening files on an FTP server.
 
 ```go
 type Client interface {
@@ -42,7 +39,7 @@ type Client interface {
 }
 ```
 
-The library also includes a [mock client implementation](https://github.com/moov-io/go-ftp/blob/master/mock_client.go) which uses a local filesystem temporary directory for testing.
+The library also includes a [mock client implementation](https://pkg.go.dev/github.com/moov-io/go-ftp#MockClient) which uses a local filesystem temporary directory for testing.
 
 ## Project status
 
