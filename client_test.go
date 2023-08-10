@@ -8,10 +8,13 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	go_ftp "github.com/moov-io/go-ftp"
+	mhttptest "github.com/moov-io/go-ftp/internal/httptest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -84,6 +87,8 @@ func TestClient(t *testing.T) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, found, []string{"first.txt", "second.txt", "archive/old.txt"})
 	})
+
+	require.NoError(t, client.Close())
 }
 
 func TestClientErrors(t *testing.T) {
@@ -128,6 +133,8 @@ func TestClientErrors(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "550 Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory")
 	})
+
+	require.NoError(t, client.Close())
 }
 
 func TestClientFailure(t *testing.T) {
@@ -140,4 +147,26 @@ func TestClientFailure(t *testing.T) {
 	require.ErrorContains(t, err, "ftp connect: 530 Incorrect password, not logged in")
 
 	require.ErrorContains(t, client.Ping(), "530 Incorrect password, not logged in")
+	require.NoError(t, client.Close())
+}
+
+func TestClient__tlsDialOption(t *testing.T) {
+	if testing.Short() {
+		return // skip network calls
+	}
+
+	cafile, err := mhttptest.GrabConnectionCertificates(t, "google.com:443")
+	require.NoError(t, err)
+	defer os.Remove(cafile)
+
+	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
+		Hostname: "127.0.0.1:2121",
+		Username: "admin",
+		Password: "123456",
+		Timeout:  5 * time.Second,
+		CAFile:   cafile,
+	})
+	require.ErrorContains(t, err, "tls: first record does not look like a TLS handshake")
+	require.NotNil(t, client)
+	require.NoError(t, client.Close())
 }
