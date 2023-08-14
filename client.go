@@ -197,7 +197,7 @@ func (cc *client) Open(path string) (*File, error) {
 // Callers need to close the returned Contents
 //
 // Callers should be aware that network errors while reading can occur since contents
-// are streamed from the FTP server.
+// are streamed from the FTP server. Having multiple open readers may not be supported.
 func (cc *client) Reader(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -272,43 +272,34 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 }
 
 func (cc *client) ListFiles(dir string) ([]string, error) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-
-	conn, err := cc.connection()
-	if err != nil {
-		return nil, err
-	}
-
-	if dir != "" && dir != "." {
-		// Jump to previous directory after command is done
-		wd, err := conn.CurrentDir()
-		if err != nil {
-			return nil, err
+	pattern := filepath.Clean(strings.TrimPrefix(dir, string(os.PathSeparator)))
+	switch {
+	case pattern == ".":
+		if dir == "" {
+			pattern = "*"
+		} else {
+			pattern = filepath.Join(dir, "*")
 		}
-		defer func(previous string) {
-			// Return to our previous directory when initially called
-			if cleanupErr := conn.ChangeDir(previous); cleanupErr != nil {
-				err = fmt.Errorf("FTP: problem listing %s: %w", dir, cleanupErr)
-			}
-		}(wd)
-
-		// Move into directory to run the command
-		if err := conn.ChangeDir(dir); err != nil {
-			return nil, err
-		}
-	}
-
-	fds, err := conn.List("")
-	if err != nil {
-		return nil, fmt.Errorf("listing %s failed: %w", dir, err)
+	case pattern != "":
+		pattern += "/*"
 	}
 
 	var filenames []string
-	for i := range fds {
-		if fds[i].Type == ftp.EntryTypeFile {
-			filenames = append(filenames, filepath.Base(fds[i].Name))
+	err := cc.Walk(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if d.IsDir() {
+			return nil
+		}
+		matches, err := filepath.Match(pattern, path)
+		if matches && err == nil {
+			filenames = append(filenames, filepath.Base(path))
+		}
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing %s failed: %w", dir, err)
 	}
 	return filenames, nil
 }
