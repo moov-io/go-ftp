@@ -197,7 +197,7 @@ func (cc *client) Open(path string) (*File, error) {
 // Callers need to close the returned Contents
 //
 // Callers should be aware that network errors while reading can occur since contents
-// are streamed from the FTP server.
+// are streamed from the FTP server. Having multiple open readers may not be supported.
 func (cc *client) Reader(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
