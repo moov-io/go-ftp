@@ -286,6 +286,9 @@ func (cc *client) ListFiles(dir string) ([]string, error) {
 
 	var filenames []string
 	err := cc.Walk(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return nil
 		}
