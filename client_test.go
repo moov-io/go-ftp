@@ -75,7 +75,13 @@ func TestClient(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
 		filenames, err := client.ListFiles(".")
 		require.NoError(t, err)
-		require.ElementsMatch(t, filenames, []string{"first.txt", "second.txt"})
+		require.ElementsMatch(t, filenames, []string{"first.txt", "second.txt", "empty.txt"})
+	})
+
+	t.Run("list subdir", func(t *testing.T) {
+		filenames, err := client.ListFiles("archive")
+		require.NoError(t, err)
+		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
 	})
 
 	t.Run("walk", func(t *testing.T) {
@@ -85,7 +91,7 @@ func TestClient(t *testing.T) {
 			return nil
 		})
 		require.NoError(t, err)
-		require.ElementsMatch(t, found, []string{"first.txt", "second.txt", "archive/old.txt"})
+		require.ElementsMatch(t, found, []string{"first.txt", "second.txt", "empty.txt", "archive/old.txt", "archive/empty2.txt"})
 	})
 
 	require.NoError(t, client.Close())
@@ -123,15 +129,18 @@ func TestClientErrors(t *testing.T) {
 
 	t.Run("list", func(t *testing.T) {
 		filenames, err := client.ListFiles("does/not/exist")
-		require.ErrorContains(t, err, "550 Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory")
+		require.NoError(t, err)
 		require.Len(t, filenames, 0)
 	})
 
 	t.Run("walk", func(t *testing.T) {
+		var found []string
 		err := client.Walk("does/not/exist", func(path string, d fs.DirEntry, err error) error {
+			found = append(found, path)
 			return nil
 		})
 		require.ErrorContains(t, err, "550 Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory")
+		require.Len(t, found, 0)
 	})
 
 	require.NoError(t, client.Close())
