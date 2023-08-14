@@ -272,7 +272,7 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 }
 
 func (cc *client) ListFiles(dir string) ([]string, error) {
-	pattern := filepath.Clean(dir)
+	pattern := filepath.Clean(strings.TrimPrefix(dir, string(os.PathSeparator)))
 	switch {
 	case pattern == ".":
 		if dir == "" {

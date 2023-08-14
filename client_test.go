@@ -82,6 +82,14 @@ func TestClient(t *testing.T) {
 		filenames, err := client.ListFiles("archive")
 		require.NoError(t, err)
 		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
+
+		filenames, err = client.ListFiles("/archive")
+		require.NoError(t, err)
+		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
+
+		filenames, err = client.ListFiles("/archive/")
+		require.NoError(t, err)
+		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
 	})
 
 	t.Run("walk", func(t *testing.T) {
