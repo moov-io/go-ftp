@@ -4,7 +4,7 @@ version: '3.7'
 
 services:
   ftp:
-    image: moov/fsftp:v0.2.1
+    image: moov/fsftp:v0.2.2
     ports:
       - "2121:2121"
       - "30000-30009:30000-30009"
