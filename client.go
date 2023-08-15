@@ -275,7 +275,7 @@ func (cc *client) ListFiles(dir string) ([]string, error) {
 	pattern := filepath.Clean(strings.TrimPrefix(dir, string(os.PathSeparator)))
 	switch {
 	case pattern == ".":
-		if dir == "" {
+		if dir == "" || dir == "/" {
 			pattern = "*"
 		} else {
 			pattern = filepath.Join(dir, "*")
@@ -294,7 +294,7 @@ func (cc *client) ListFiles(dir string) ([]string, error) {
 		}
 		matches, err := filepath.Match(pattern, path)
 		if matches && err == nil {
-			filenames = append(filenames, filepath.Base(path))
+			filenames = append(filenames, filepath.Join(dir, filepath.Base(path)))
 		}
 		return err
 	})
