@@ -1,3 +1,9 @@
+## v0.2.0 (Released 2023-08-15)
+
+IMPROVEMENTS
+
+- fix: return full paths which matches moov-io/go-sftp behavior
+
 ## v0.1.1 (Released 2023-08-14)
 
 IMPROVEMENTS
