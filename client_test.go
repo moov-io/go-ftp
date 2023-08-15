@@ -76,20 +76,24 @@ func TestClient(t *testing.T) {
 		filenames, err := client.ListFiles(".")
 		require.NoError(t, err)
 		require.ElementsMatch(t, filenames, []string{"first.txt", "second.txt", "empty.txt"})
+
+		filenames, err = client.ListFiles("/")
+		require.NoError(t, err)
+		require.ElementsMatch(t, filenames, []string{"/first.txt", "/second.txt", "/empty.txt"})
 	})
 
 	t.Run("list subdir", func(t *testing.T) {
 		filenames, err := client.ListFiles("archive")
 		require.NoError(t, err)
-		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
+		require.ElementsMatch(t, filenames, []string{"archive/old.txt", "archive/empty2.txt"})
 
 		filenames, err = client.ListFiles("/archive")
 		require.NoError(t, err)
-		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
+		require.ElementsMatch(t, filenames, []string{"/archive/old.txt", "/archive/empty2.txt"})
 
 		filenames, err = client.ListFiles("/archive/")
 		require.NoError(t, err)
-		require.ElementsMatch(t, filenames, []string{"old.txt", "empty2.txt"})
+		require.ElementsMatch(t, filenames, []string{"/archive/old.txt", "/archive/empty2.txt"})
 	})
 
 	t.Run("walk", func(t *testing.T) {
@@ -99,7 +103,22 @@ func TestClient(t *testing.T) {
 			return nil
 		})
 		require.NoError(t, err)
-		require.ElementsMatch(t, found, []string{"first.txt", "second.txt", "empty.txt", "archive/old.txt", "archive/empty2.txt"})
+		require.ElementsMatch(t, found, []string{
+			"first.txt", "second.txt", "empty.txt",
+			"archive/old.txt", "archive/empty2.txt",
+		})
+	})
+
+	t.Run("walk subdir", func(t *testing.T) {
+		var found []string
+		err := client.Walk("/archive", func(path string, d fs.DirEntry, err error) error {
+			found = append(found, path)
+			return nil
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, found, []string{
+			"/archive/old.txt", "/archive/empty2.txt",
+		})
 	})
 
 	require.NoError(t, client.Close())
