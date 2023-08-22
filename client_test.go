@@ -6,8 +6,10 @@ package go_ftp_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
+	"math/rand"
 	"os"
 	"strings"
 	"testing"
@@ -96,6 +98,41 @@ func TestClient(t *testing.T) {
 		require.ElementsMatch(t, filenames, []string{"/archive/old.txt", "/archive/empty2.txt"})
 	})
 
+	t.Run("list and read", func(t *testing.T) {
+		filenames, err := client.ListFiles("/with-empty")
+		require.NoError(t, err)
+
+		// randomize filename order
+		rand.Shuffle(len(filenames), func(i, j int) {
+			filenames[i], filenames[j] = filenames[j], filenames[i]
+		})
+		require.ElementsMatch(t, filenames, []string{
+			"/with-empty/EMPTY1.txt", "/with-empty/empty_file2.txt",
+			"/with-empty/data.txt", "/with-empty/data2.txt",
+		})
+
+		// read each file and get back expected contents
+		var contents []string
+		for i := range filenames {
+			var file *go_ftp.File
+			if i/2 == 0 {
+				file, err = client.Open(filenames[i])
+			} else {
+				file, err = client.Reader(filenames[i])
+			}
+			require.NoError(t, err, fmt.Sprintf("filenames[%d]", i))
+			require.NotNil(t, file, fmt.Sprintf("filenames[%d]", i))
+			require.NotNil(t, file.Contents, fmt.Sprintf("filenames[%d]", i))
+
+			bs, err := io.ReadAll(file.Contents)
+			require.NoError(t, err)
+
+			contents = append(contents, string(bs))
+		}
+
+		require.ElementsMatch(t, contents, []string{"", "", "also data\n", "has data\n"})
+	})
+
 	t.Run("walk", func(t *testing.T) {
 		var found []string
 		err := client.Walk(".", func(path string, d fs.DirEntry, err error) error {
@@ -106,6 +143,8 @@ func TestClient(t *testing.T) {
 		require.ElementsMatch(t, found, []string{
 			"first.txt", "second.txt", "empty.txt",
 			"archive/old.txt", "archive/empty2.txt",
+			"with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
+			"with-empty/data.txt", "with-empty/data2.txt",
 		})
 	})
 

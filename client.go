@@ -399,7 +399,7 @@ func readResponse(resp *ftp.Response) (io.ReadCloser, error) {
 	//
 	// See https://github.com/moovfinancial/paygate/issues/494
 	if n == 0 && err == nil {
-		return nil, nil
+		return io.NopCloser(&buf), nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("n=%d error=%v", n, err)
