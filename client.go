@@ -271,11 +271,18 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 	return conn.Stor(filename, contents)
 }
 
-func (cc *client) ListFiles(dir string) ([]string, error) {
+// ListFiles will return the paths of files within dir. Paths are returned as locations from dir,
+// so if dir is an absolute path the returned paths will be.
+//
+// Paths are matched in case-insensitive comparisons, but results are returned exactly as they
+// appear on the server.
+func (c *client) ListFiles(dir string) ([]string, error) {
 	pattern := filepath.Clean(strings.TrimPrefix(dir, string(os.PathSeparator)))
 	switch {
+	case dir == "/":
+		pattern = "*"
 	case pattern == ".":
-		if dir == "" || dir == "/" {
+		if dir == "" {
 			pattern = "*"
 		} else {
 			pattern = filepath.Join(dir, "*")
@@ -285,16 +292,29 @@ func (cc *client) ListFiles(dir string) ([]string, error) {
 	}
 
 	var filenames []string
-	err := cc.Walk(".", func(path string, d fs.DirEntry, err error) error {
+	err := c.Walk(".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
 			return nil
 		}
-		matches, err := filepath.Match(pattern, path)
+
+		// Check if the server's path matches what we're searching for in a case-insensitive comparison.
+		matches, err := filepath.Match(strings.ToLower(pattern), strings.ToLower(path))
 		if matches && err == nil {
-			filenames = append(filenames, filepath.Join(dir, filepath.Base(path)))
+			// Return the path with exactly the case on the server.
+			idx := strings.Index(strings.ToLower(path), strings.ToLower(strings.TrimSuffix(pattern, "*")))
+			if idx > -1 {
+				path = path[idx:]
+				if strings.HasPrefix(dir, "/") && !strings.HasPrefix(path, "/") {
+					path = "/" + path
+				}
+				filenames = append(filenames, path)
+			} else {
+				// Fallback to Go logic of presenting the path
+				filenames = append(filenames, filepath.Join(dir, filepath.Base(path)))
+			}
 		}
 		return err
 	})
@@ -304,6 +324,9 @@ func (cc *client) ListFiles(dir string) ([]string, error) {
 	return filenames, nil
 }
 
+// Walk will traverse dir and call fs.WalkDirFunc on each entry.
+//
+// Follow the docs for fs.WalkDirFunc for details on traversal. Walk accepts fs.SkipDir to not process directories.
 func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()

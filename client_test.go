@@ -133,6 +133,16 @@ func TestClient(t *testing.T) {
 		require.ElementsMatch(t, contents, []string{"", "", "also data\n", "has data\n"})
 	})
 
+	t.Run("list case testing", func(t *testing.T) {
+		files, err := client.ListFiles("/upper")
+		require.NoError(t, err)
+		require.ElementsMatch(t, files, []string{"/Upper/names.txt"})
+
+		files, err = client.ListFiles("ARCHIVE")
+		require.NoError(t, err)
+		require.ElementsMatch(t, files, []string{"archive/old.txt", "archive/empty2.txt"})
+	})
+
 	t.Run("walk", func(t *testing.T) {
 		var found []string
 		err := client.Walk(".", func(path string, d fs.DirEntry, err error) error {
@@ -141,6 +151,7 @@ func TestClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.ElementsMatch(t, found, []string{
+			"Upper/names.txt",
 			"first.txt", "second.txt", "empty.txt",
 			"archive/old.txt", "archive/empty2.txt",
 			"with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
