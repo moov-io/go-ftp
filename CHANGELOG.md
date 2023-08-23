@@ -1,3 +1,10 @@
+## v0.3.0 (Released 2023-08-23)
+
+IMPROVEMENTS
+
+- fix: clarify ListFiles returns case intensive matches but returns server case
+- test: add "list and read" checks
+
 ## v0.2.0 (Released 2023-08-15)
 
 IMPROVEMENTS
