@@ -358,10 +358,13 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 	// Setup a Walker for each file
 	walker := conn.Walk(dir)
 	for walker.Next() {
+		if err := walker.Err(); err != nil {
+			return err
+		}
 		entry := Entry{
 			fd: walker.Stat(),
 		}
-		if entry.IsDir() {
+		if entry.fd == nil || entry.IsDir() {
 			continue
 		}
 		err = fn(walker.Path(), entry, walker.Err())
