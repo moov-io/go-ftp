@@ -1,3 +1,9 @@
+## v0.3.1 (Released 2023-08-28)
+
+IMPROVEMENTS
+
+- fix: check walker error before stat calls
+
 ## v0.3.0 (Released 2023-08-23)
 
 IMPROVEMENTS
