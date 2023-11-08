@@ -32,13 +32,15 @@ func (f *File) Close() error {
 	if f == nil {
 		return nil
 	}
+	if f.Contents != nil {
+		if err := f.Contents.Close(); err != nil {
+			return err
+		}
+	}
 	if f.cleanup != nil {
 		if err := f.cleanup(); err != nil {
 			return err
 		}
-	}
-	if f.Contents != nil {
-		return f.Contents.Close()
 	}
 	return nil
 }

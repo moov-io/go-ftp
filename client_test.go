@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,17 +48,25 @@ func TestClient(t *testing.T) {
 	t.Run("open larger files", func(t *testing.T) {
 		largerFileSize := size(t, filepath.Join("testdata", "ftp-server", "bigdata", "large.txt"))
 
-		for i := 0; i < 10; i++ {
-			file, err := client.Open("/bigdata/large.txt")
-			require.NoError(t, err)
+		const iterations = 10
+		var wg sync.WaitGroup
+		wg.Add(iterations)
+		for i := 0; i < iterations; i++ {
+			go func(wg *sync.WaitGroup) {
+				defer wg.Done()
 
-			var buf bytes.Buffer
-			_, err = io.Copy(&buf, file)
-			require.NoError(t, err)
+				file, err := client.Open("/bigdata/large.txt")
+				require.NoError(t, err)
 
-			require.NoError(t, file.Close())
-			require.Equal(t, largerFileSize, len(buf.Bytes()))
+				var buf bytes.Buffer
+				_, err = io.Copy(&buf, file)
+				require.NoError(t, err)
+
+				require.NoError(t, file.Close())
+				require.Equal(t, largerFileSize, len(buf.Bytes()))
+			}(&wg)
 		}
+		wg.Wait()
 	})
 
 	t.Run("reader", func(t *testing.T) {
@@ -73,6 +82,7 @@ func TestClient(t *testing.T) {
 	t.Run("read larger files", func(t *testing.T) {
 		largerFileSize := size(t, filepath.Join("testdata", "ftp-server", "bigdata", "large.txt"))
 
+		// reader must process files in sequence
 		for i := 0; i < 10; i++ {
 			file, err := client.Reader("/bigdata/large.txt")
 			require.NoError(t, err)
