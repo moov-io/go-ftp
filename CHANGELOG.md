@@ -1,3 +1,11 @@
+## v0.3.2 (Released 2023-11-08)
+
+IMPROVEMENTS
+
+- fix: allow Reader to stream larger files
+- test: verify .Open can be used concurrently
+- test: verify clients reconnect if used after Close()
+
 ## v0.3.1 (Released 2023-08-28)
 
 IMPROVEMENTS
