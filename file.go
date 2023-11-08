@@ -22,6 +22,8 @@ type File struct {
 	ModTime time.Time
 
 	fileinfo fs.FileInfo
+
+	cleanup func() error
 }
 
 var _ fs.File = (&File{})
@@ -31,7 +33,14 @@ func (f *File) Close() error {
 		return nil
 	}
 	if f.Contents != nil {
-		return f.Contents.Close()
+		if err := f.Contents.Close(); err != nil {
+			return err
+		}
+	}
+	if f.cleanup != nil {
+		if err := f.cleanup(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
