@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,22 @@ func TestClient(t *testing.T) {
 		require.Equal(t, "hello world", strings.TrimSpace(buf.String()))
 	})
 
+	t.Run("open larger files", func(t *testing.T) {
+		largerFileSize := size(t, filepath.Join("testdata", "ftp-server", "bigdata", "large.txt"))
+
+		for i := 0; i < 10; i++ {
+			file, err := client.Open("/bigdata/large.txt")
+			require.NoError(t, err)
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, file)
+			require.NoError(t, err)
+
+			require.NoError(t, file.Close())
+			require.Equal(t, largerFileSize, len(buf.Bytes()))
+		}
+	})
+
 	t.Run("reader", func(t *testing.T) {
 		file, err := client.Reader("archive/old.txt")
 		require.NoError(t, err)
@@ -51,6 +68,22 @@ func TestClient(t *testing.T) {
 		var buf bytes.Buffer
 		io.Copy(&buf, file)
 		require.Equal(t, "previous data", strings.TrimSpace(buf.String()))
+	})
+
+	t.Run("read larger files", func(t *testing.T) {
+		largerFileSize := size(t, filepath.Join("testdata", "ftp-server", "bigdata", "large.txt"))
+
+		for i := 0; i < 10; i++ {
+			file, err := client.Reader("/bigdata/large.txt")
+			require.NoError(t, err)
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, file)
+			require.NoError(t, err)
+
+			require.NoError(t, file.Close())
+			require.Equal(t, largerFileSize, len(buf.Bytes()))
+		}
 	})
 
 	t.Run("upload and delete", func(t *testing.T) {
@@ -151,7 +184,7 @@ func TestClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.ElementsMatch(t, found, []string{
-			"Upper/names.txt",
+			"Upper/names.txt", "bigdata/large.txt",
 			"first.txt", "second.txt", "empty.txt",
 			"archive/old.txt", "archive/empty2.txt",
 			"with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
@@ -255,4 +288,16 @@ func TestClient__tlsDialOption(t *testing.T) {
 	require.ErrorContains(t, err, "tls: first record does not look like a TLS handshake")
 	require.NotNil(t, client)
 	require.NoError(t, client.Close())
+}
+
+func size(t *testing.T, where string) int {
+	t.Helper()
+
+	fd, err := os.Open(where)
+	require.NoError(t, err)
+
+	info, err := fd.Stat()
+	require.NoError(t, err)
+
+	return int(info.Size())
 }

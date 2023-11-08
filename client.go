@@ -5,6 +5,7 @@
 package go_ftp
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
@@ -179,14 +180,41 @@ func (cc *client) Open(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 
-	resp, err := cc.openFilepath(path)
+	conn, err := cc.connection()
 	if err != nil {
 		return nil, err
 	}
+
+	dir, filename := filepath.Split(path)
+	if dir != "" {
+		// Jump to previous directory after command is done
+		wd, err := conn.CurrentDir()
+		if err != nil {
+			return nil, err
+		}
+		defer func(previous string) {
+			// Return to our previous directory when initially called
+			if cleanupErr := conn.ChangeDir(previous); cleanupErr != nil {
+				err = fmt.Errorf("FTP: problem with readFiles: %w", cleanupErr)
+			}
+		}(wd)
+
+		// Move into directory to run the command
+		if err := conn.ChangeDir(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := conn.Retr(filename)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving %s failed: %w", path, err)
+	}
+
 	data, err := readResponse(resp)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s failed: %w", path, err)
 	}
+
 	return &File{
 		Filename: filepath.Base(path),
 		Contents: data,
@@ -202,14 +230,55 @@ func (cc *client) Reader(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 
-	file, err := cc.openFilepath(path)
+	conn, err := cc.connection()
 	if err != nil {
 		return nil, err
 	}
-	return &File{
+
+	file := &File{
 		Filename: filepath.Base(path),
-		Contents: file,
-	}, nil
+	}
+
+	dir, filename := filepath.Split(path)
+	if dir != "" {
+		// Jump to previous directory after command is done
+		wd, err := conn.CurrentDir()
+		if err != nil {
+			return nil, err
+		}
+
+		// On file Close move back to the directory we were previously in
+		file.cleanup = func() error {
+			err := conn.ChangeDir(wd)
+			if err != nil {
+				return fmt.Errorf("returning to %s failed: %w", wd, err)
+			}
+			return nil
+		}
+
+		// Move into directory to run the command
+		if err := conn.ChangeDir(dir); err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := conn.Retr(filename)
+	if err != nil {
+		return nil, fmt.Errorf("retrieving %s failed: %w", path, err)
+	}
+	file.Contents = resp
+
+	prev := file.cleanup
+	file.cleanup = func() error {
+		if resp != nil {
+			if err := resp.Close(); err != nil {
+				return fmt.Errorf("closing RETR %s response failed: %w", path, err)
+			}
+		}
+		return prev()
+	}
+
+	return file, nil
 }
 
 func (cc *client) Delete(path string) error {
@@ -379,45 +448,11 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 	return nil
 }
 
-func (cc *client) openFilepath(path string) (resp *ftp.Response, err error) {
-	conn, err := cc.connection()
-	if err != nil {
-		return nil, err
-	}
-
-	dir, filename := filepath.Split(path)
-	if dir != "" {
-		// Jump to previous directory after command is done
-		wd, err := conn.CurrentDir()
-		if err != nil {
-			return nil, err
-		}
-		defer func(previous string) {
-			// Return to our previous directory when initially called
-			if cleanupErr := conn.ChangeDir(previous); cleanupErr != nil {
-				err = fmt.Errorf("FTP: problem with readFiles: %w", cleanupErr)
-			}
-		}(wd)
-
-		// Move into directory to run the command
-		if err := conn.ChangeDir(dir); err != nil {
-			return nil, err
-		}
-	}
-
-	resp, err = conn.Retr(filename)
-	if err != nil {
-		return nil, fmt.Errorf("retrieving %s failed: %w", path, err)
-	}
-
-	return resp, nil
-}
-
 func readResponse(resp *ftp.Response) (io.ReadCloser, error) {
 	defer resp.Close()
 
 	var buf bytes.Buffer
-	n, err := io.Copy(&buf, resp)
+	n, err := io.Copy(&buf, bufio.NewReader(resp))
 	// If there was nothing downloaded and no error then assume it's a directory.
 	//
 	// The FTP client doesn't have a STAT command, so we can't quite ensure this
