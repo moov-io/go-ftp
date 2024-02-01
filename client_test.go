@@ -117,6 +117,14 @@ func TestClient(t *testing.T) {
 		require.ErrorContains(t, err, "retrieving new.txt failed: 551 File not available")
 	})
 
+	t.Run("delete", func(t *testing.T) {
+		err := client.Delete("/missing.txt")
+		require.NoError(t, err)
+
+		err = client.Delete("/no-existing-dir/missing.txt")
+		require.NoError(t, err)
+	})
+
 	t.Run("list", func(t *testing.T) {
 		filenames, err := client.ListFiles(".")
 		require.NoError(t, err)
