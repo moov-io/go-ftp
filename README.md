@@ -41,6 +41,55 @@ type Client interface {
 
 The library also includes a [mock client implementation](https://pkg.go.dev/github.com/moov-io/go-ftp#MockClient) which uses a local filesystem temporary directory for testing.
 
+## Example
+
+Here is an example of how to push file to an FTP server using this module:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"path/filepath"
+
+	ftp "github.com/moov-io/go-ftp"
+)
+
+// A simple FTP file upload using go-ftp.
+func main() {
+	// Create an FTP client using the server's host and port
+	clientConfig := ftp.ClientConfig{
+		Hostname: "ftp.server.com:21",
+		Username: "admin",
+		Password: "admin",
+	}
+
+	client, err := ftp.NewClient(clientConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check if the FTP client is reachable
+	if err := client.Ping(); err != nil {
+		log.Fatal(err)
+	}
+
+	if client != nil {
+		defer client.Close()
+	}
+
+	// Open the file to be uploaded
+	fileData, err := os.Open("file.txt")
+
+	// Upload the file to the destination path
+	err = client.UploadFile(filepath.Join("/tmp", "file.txt"), fileData)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
 ## Project status
 
 Moov Go FTP is actively used in production environments. Please star the project if you are interested in its progress. Please let us know if you encounter any bugs/unclear documentation or have feature suggestions by opening up an issue or pull request. Thanks!
