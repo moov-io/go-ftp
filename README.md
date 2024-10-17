@@ -66,6 +66,7 @@ Here is an example of how to push file to an FTP server using this module:
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
@@ -73,7 +74,7 @@ import (
 )
 
 // A simple FTP file upload using go-ftp.
-func main() error {
+func main() {
 	fileName := "file.txt"
 	folderDestName := "/tmp"
 
@@ -87,12 +88,12 @@ func main() error {
 	// Create a new FTP client
 	client, err := ftp.NewClient(clientConfig)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	// Check if the FTP client is reachable
 	if err := client.Ping(); err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	// Close the FTP connection when done
@@ -101,14 +102,13 @@ func main() error {
 	// Open the file to be uploaded
 	fileData, err := os.Open(fileName)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	// Upload the file to the destination path
 	if err := client.UploadFile(filepath.Join(folderDestName, fileName), fileData); err != nil {
-		return err
+		log.Fatal(err)
 	}
-	return nil
 }
 ```
 
