@@ -41,23 +41,6 @@ type Client interface {
 
 The library also includes a [mock client implementation](https://pkg.go.dev/github.com/moov-io/go-ftp#MockClient) which uses a local filesystem temporary directory for testing.
 
-## Project status
-
-Moov Go FTP is actively used in production environments. Please star the project if you are interested in its progress. Please let us know if you encounter any bugs/unclear documentation or have feature suggestions by opening up an issue or pull request. Thanks!
-
-## Getting help
-
-| channel                                                     | info                                                                                                                                    |
-|-------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| [Project Documentation](https://moov-io.github.io/go-ftp/) | Our project documentation available online.                                                                                             |
-| Twitter [@moov](https://twitter.com/moov)	                  | You can follow Moov.io's Twitter feed to get updates on our project(s). You can also tweet us questions or just share blogs or stories. |
-| [GitHub Issue](https://github.com/moov-io/go-ftp/issues)   | If you are able to reproduce a problem please open a GitHub Issue under the specific project that caused the error.                     |
-| [moov-io slack](https://slack.moov.io/)                     | Join our slack channel to have an interactive discussion about the development of the project.                                          |
-
-## Supported and tested platforms
-
-- 64-bit Linux (Ubuntu, Debian), macOS, and Windows
-
 ## Example
 
 Here is an example of how to push file to an FTP server using this module:
@@ -75,9 +58,6 @@ import (
 
 // A simple FTP file upload using go-ftp.
 func main() {
-	fileName := "file.txt"
-	folderDestName := "/tmp"
-
 	// Create an FTP client using the server's host and port
 	clientConfig := ftp.ClientConfig{
 		Hostname: "ftp.server.com:21",
@@ -85,7 +65,6 @@ func main() {
 		Password: "admin",
 	}
 
-	// Create a new FTP client
 	client, err := ftp.NewClient(clientConfig)
 	if err != nil {
 		log.Fatal(err)
@@ -96,21 +75,37 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Close the FTP connection when done
-	defer client.Close()
-
-	// Open the file to be uploaded
-	fileData, err := os.Open(fileName)
-	if err != nil {
-		log.Fatal(err)
+	if client != nil {
+		defer client.Close()
 	}
 
+	// Open the file to be uploaded
+	fileData, err := os.Open("file.txt")
+
 	// Upload the file to the destination path
-	if err := client.UploadFile(filepath.Join(folderDestName, fileName), fileData); err != nil {
+	err = client.UploadFile(filepath.Join("/tmp", "file.txt"), fileData)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
 ```
+
+## Project status
+
+Moov Go FTP is actively used in production environments. Please star the project if you are interested in its progress. Please let us know if you encounter any bugs/unclear documentation or have feature suggestions by opening up an issue or pull request. Thanks!
+
+## Getting help
+
+| channel                                                     | info                                                                                                                                    |
+|-------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| [Project Documentation](https://moov-io.github.io/go-ftp/) | Our project documentation available online.                                                                                             |
+| Twitter [@moov](https://twitter.com/moov)	                  | You can follow Moov.io's Twitter feed to get updates on our project(s). You can also tweet us questions or just share blogs or stories. |
+| [GitHub Issue](https://github.com/moov-io/go-ftp/issues)   | If you are able to reproduce a problem please open a GitHub Issue under the specific project that caused the error.                     |
+| [moov-io slack](https://slack.moov.io/)                     | Join our slack channel to have an interactive discussion about the development of the project.                                          |
+
+## Supported and tested platforms
+
+- 64-bit Linux (Ubuntu, Debian), macOS, and Windows
 
 ## Contributing
 
