@@ -58,6 +58,60 @@ Moov Go FTP is actively used in production environments. Please star the project
 
 - 64-bit Linux (Ubuntu, Debian), macOS, and Windows
 
+## Example
+
+Here is an example of how to push file to an FTP server using this module:
+
+```go
+package main
+
+import (
+	"os"
+	"path/filepath"
+
+	ftp "github.com/moov-io/go-ftp"
+)
+
+// A simple FTP file upload using go-ftp.
+func main() error {
+	fileName := "file.txt"
+	folderDestName := "/tmp"
+
+	// Create an FTP client using the server's host and port
+	clientConfig := ftp.ClientConfig{
+		Hostname: "ftp.server.com:21",
+		Username: "admin",
+		Password: "admin",
+	}
+
+	// Create a new FTP client
+	client, err := ftp.NewClient(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	// Check if the FTP client is reachable
+	if err := client.Ping(); err != nil {
+		return err
+	}
+
+	// Close the FTP connection when done
+	defer client.Close()
+
+	// Open the file to be uploaded
+	fileData, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+
+	// Upload the file to the destination path
+	if err := client.UploadFile(filepath.Join(folderDestName, fileName), fileData); err != nil {
+		return err
+	}
+	return nil
+}
+```
+
 ## Contributing
 
 Yes please! Please review our [Contributing guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) to get started!
