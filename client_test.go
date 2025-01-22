@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	mhttptest "github.com/moov-io/go-ftp/internal/httptest"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestClient(t *testing.T) {
@@ -49,24 +49,34 @@ func TestClient(t *testing.T) {
 		largerFileSize := size(t, filepath.Join("testdata", "ftp-server", "bigdata", "large.txt"))
 
 		const iterations = 10
-		var wg sync.WaitGroup
-		wg.Add(iterations)
-		for i := 0; i < iterations; i++ {
-			go func(wg *sync.WaitGroup) {
-				defer wg.Done()
 
+		var g errgroup.Group
+		for i := 0; i < iterations; i++ {
+			g.Go(func() error {
 				file, err := client.Open("/bigdata/large.txt")
-				require.NoError(t, err)
+				if err != nil {
+					return err
+				}
 
 				var buf bytes.Buffer
 				_, err = io.Copy(&buf, file)
-				require.NoError(t, err)
+				if err != nil {
+					return err
+				}
 
-				require.NoError(t, file.Close())
-				require.Equal(t, largerFileSize, len(buf.Bytes()))
-			}(&wg)
+				err = file.Close()
+				if err != nil {
+					return err
+				}
+
+				read := len(buf.Bytes())
+				if read != largerFileSize {
+					return fmt.Errorf("read %d bytes, expected %d", read, largerFileSize)
+				}
+				return nil
+			})
 		}
-		wg.Wait()
+		require.NoError(t, g.Wait())
 	})
 
 	t.Run("reader", func(t *testing.T) {
@@ -92,7 +102,7 @@ func TestClient(t *testing.T) {
 			require.NoError(t, err)
 
 			require.NoError(t, file.Close())
-			require.Equal(t, largerFileSize, len(buf.Bytes()))
+			require.Len(t, buf.Bytes(), largerFileSize)
 		}
 	})
 
@@ -171,9 +181,9 @@ func TestClient(t *testing.T) {
 			} else {
 				file, err = client.Reader(filenames[i])
 			}
-			require.NoError(t, err, fmt.Sprintf("filenames[%d]", i))
-			require.NotNil(t, file, fmt.Sprintf("filenames[%d]", i))
-			require.NotNil(t, file.Contents, fmt.Sprintf("filenames[%d]", i))
+			require.NoError(t, err, "filenames[%d]", i)
+			require.NotNil(t, file, "filenames[%d]", i)
+			require.NotNil(t, file.Contents, "filenames[%d]", i)
 
 			bs, err := io.ReadAll(file.Contents)
 			require.NoError(t, err)
@@ -258,7 +268,7 @@ func TestClientErrors(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
 		filenames, err := client.ListFiles("does/not/exist")
 		require.NoError(t, err)
-		require.Len(t, filenames, 0)
+		require.Empty(t, filenames)
 	})
 
 	t.Run("walk", func(t *testing.T) {
@@ -268,7 +278,7 @@ func TestClientErrors(t *testing.T) {
 			return nil
 		})
 		require.ErrorContains(t, err, "550 Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory")
-		require.Len(t, found, 0)
+		require.Empty(t, found)
 	})
 
 	require.NoError(t, client.Close())
