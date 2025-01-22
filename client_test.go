@@ -212,10 +212,10 @@ func TestClient(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.ElementsMatch(t, found, []string{
-			"Upper/names.txt", "bigdata/large.txt",
+			"Upper", "Upper/names.txt", "bigdata", "bigdata/large.txt",
 			"first.txt", "second.txt", "empty.txt",
-			"archive/old.txt", "archive/empty2.txt",
-			"with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
+			"archive", "archive/old.txt", "archive/empty2.txt",
+			"with-empty", "with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
 			"with-empty/data.txt", "with-empty/data2.txt",
 		})
 	})
@@ -229,6 +229,25 @@ func TestClient(t *testing.T) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, found, []string{
 			"/archive/old.txt", "/archive/empty2.txt",
+		})
+	})
+
+	t.Run("walk skipdir", func(t *testing.T) {
+		var found []string
+		err := client.Walk(".", func(path string, d fs.DirEntry, err error) error {
+			found = append(found, path)
+			if strings.Contains(path, "with-empty") {
+				return fs.SkipDir
+			}
+			return nil
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, found, []string{
+			"with-empty",
+			"second.txt", "first.txt", "empty.txt",
+			"bigdata", "bigdata/large.txt",
+			"archive", "archive/old.txt", "archive/empty2.txt",
+			"Upper", "Upper/names.txt",
 		})
 	})
 

@@ -426,19 +426,37 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 
 	// Setup a Walker for each file
 	walker := conn.Walk(dir)
+
+	var skippedDirs []string
 	for walker.Next() {
 		if err := walker.Err(); err != nil {
 			return err
 		}
+
+		var skip bool
+		for _, sd := range skippedDirs {
+			matched := strings.HasPrefix(walker.Path(), sd)
+			if matched {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			walker.SkipDir()
+			continue
+		}
+
 		entry := Entry{
 			fd: walker.Stat(),
 		}
-		if entry.fd == nil || entry.IsDir() {
+		if entry.fd == nil {
 			continue
 		}
 		err = fn(walker.Path(), entry, walker.Err())
 		if err != nil {
 			if err == fs.SkipDir {
+				skippedDirs = append(skippedDirs, filepath.Join(dir, ""))
+
 				walker.SkipDir()
 			} else {
 				return fmt.Errorf("walking %s failed: %w", walker.Path(), err)
