@@ -1,3 +1,20 @@
+## v0.4.0 (Released 2025-01-23)
+
+This release of moov-io/go-ftp changes `Walk` to pass directories to `fs.WalkDirFunc`. Previous versions incorrectly mishandled `fs.SkipDir` and did not provide directories to callers.
+
+IMPROVEMENTS
+
+- feat(readme): add file upload example (#17)
+- fix: respect SkipDir to bypass directories
+- test: verify deleting missing files isn't an error
+
+BUILD
+
+- fix(deps): update module github.com/stretchr/testify to v1.10.0 (#18)
+- chore(deps): update github/codeql-action action to v3
+- chore(deps): update actions/setup-go action to v5
+- chore(deps): update actions/checkout action to v4
+
 ## v0.3.2 (Released 2023-11-08)
 
 IMPROVEMENTS
