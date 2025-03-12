@@ -16,7 +16,17 @@ import (
 type MockClient struct {
 	root string
 
-	Err error
+	PingErr  error
+	CloseErr error
+
+	OpenErr   error
+	ReaderErr error
+
+	DeleteErr     error
+	UploadFileErr error
+
+	ListFilesErr error
+	WalkErr      error
 }
 
 var _ Client = (&MockClient{})
@@ -28,7 +38,7 @@ func NewMockClient(t *testing.T) *MockClient {
 }
 
 func (c *MockClient) Ping() error {
-	return c.Err
+	return c.PingErr
 }
 
 func (c *MockClient) Dir() string {
@@ -36,16 +46,19 @@ func (c *MockClient) Dir() string {
 }
 
 func (c *MockClient) Close() error {
-	return c.Err
+	return c.CloseErr
 }
 
 func (c *MockClient) Reader(path string) (*File, error) {
+	if c.ReaderErr != nil {
+		return nil, c.ReaderErr
+	}
 	return c.Open(path)
 }
 
 func (c *MockClient) Open(path string) (*File, error) {
-	if c.Err != nil {
-		return nil, c.Err
+	if c.OpenErr != nil {
+		return nil, c.OpenErr
 	}
 	file, err := os.Open(filepath.Join(c.root, path))
 	if err != nil {
@@ -59,12 +72,15 @@ func (c *MockClient) Open(path string) (*File, error) {
 }
 
 func (c *MockClient) Delete(path string) error {
+	if c.DeleteErr != nil {
+		return c.DeleteErr
+	}
 	return os.Remove(filepath.Join(c.root, path))
 }
 
 func (c *MockClient) UploadFile(path string, contents io.ReadCloser) error {
-	if c.Err != nil {
-		return c.Err
+	if c.UploadFileErr != nil {
+		return c.UploadFileErr
 	}
 
 	dir, _ := filepath.Split(path)
@@ -78,8 +94,8 @@ func (c *MockClient) UploadFile(path string, contents io.ReadCloser) error {
 }
 
 func (c *MockClient) ListFiles(dir string) ([]string, error) {
-	if c.Err != nil {
-		return nil, c.Err
+	if c.ListFilesErr != nil {
+		return nil, c.ListFilesErr
 	}
 
 	os.MkdirAll(filepath.Join(c.root, dir), 0777)
@@ -97,8 +113,8 @@ func (c *MockClient) ListFiles(dir string) ([]string, error) {
 }
 
 func (c *MockClient) Walk(dir string, fn fs.WalkDirFunc) error {
-	if c.Err != nil {
-		return c.Err
+	if c.WalkErr != nil {
+		return c.WalkErr
 	}
 
 	d, err := filepath.Abs(filepath.Join(c.root, dir))

@@ -31,12 +31,9 @@ func TestMockClient(t *testing.T) {
 	err = client.UploadFile("/exists.txt", body)
 	require.NoError(t, err)
 
-	client.Err = errors.New("bad error")
+	client.UploadFileErr = errors.New("bad error")
 	err = client.UploadFile("/exists.txt", body)
 	require.Error(t, err)
-
-	// reset mock client err
-	client.Err = nil
 
 	paths, err := client.ListFiles("/")
 	require.NoError(t, err)
