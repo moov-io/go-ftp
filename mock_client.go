@@ -5,6 +5,7 @@
 package go_ftp
 
 import (
+	"cmp"
 	"io"
 	"io/fs"
 	"os"
@@ -15,6 +16,10 @@ import (
 
 type MockClient struct {
 	root string
+
+	// Err is an optional error which is returned for all methods unless a
+	// method specific error (e.g. UploadFileErr) is defined
+	Err error
 
 	PingErr  error
 	CloseErr error
@@ -38,7 +43,7 @@ func NewMockClient(t *testing.T) *MockClient {
 }
 
 func (c *MockClient) Ping() error {
-	return c.PingErr
+	return cmp.Or(c.PingErr, c.Err)
 }
 
 func (c *MockClient) Dir() string {
@@ -46,19 +51,19 @@ func (c *MockClient) Dir() string {
 }
 
 func (c *MockClient) Close() error {
-	return c.CloseErr
+	return cmp.Or(c.CloseErr, c.Err)
 }
 
 func (c *MockClient) Reader(path string) (*File, error) {
-	if c.ReaderErr != nil {
-		return nil, c.ReaderErr
+	if c.Err != nil || c.ReaderErr != nil {
+		return nil, cmp.Or(c.ReaderErr, c.Err)
 	}
 	return c.Open(path)
 }
 
 func (c *MockClient) Open(path string) (*File, error) {
-	if c.OpenErr != nil {
-		return nil, c.OpenErr
+	if c.Err != nil || c.OpenErr != nil {
+		return nil, cmp.Or(c.OpenErr, c.Err)
 	}
 	file, err := os.Open(filepath.Join(c.root, path))
 	if err != nil {
@@ -72,15 +77,15 @@ func (c *MockClient) Open(path string) (*File, error) {
 }
 
 func (c *MockClient) Delete(path string) error {
-	if c.DeleteErr != nil {
-		return c.DeleteErr
+	if c.Err != nil || c.DeleteErr != nil {
+		return cmp.Or(c.DeleteErr, c.Err)
 	}
 	return os.Remove(filepath.Join(c.root, path))
 }
 
 func (c *MockClient) UploadFile(path string, contents io.ReadCloser) error {
-	if c.UploadFileErr != nil {
-		return c.UploadFileErr
+	if c.Err != nil || c.UploadFileErr != nil {
+		return cmp.Or(c.UploadFileErr, c.Err)
 	}
 
 	dir, _ := filepath.Split(path)
@@ -94,8 +99,8 @@ func (c *MockClient) UploadFile(path string, contents io.ReadCloser) error {
 }
 
 func (c *MockClient) ListFiles(dir string) ([]string, error) {
-	if c.ListFilesErr != nil {
-		return nil, c.ListFilesErr
+	if c.Err != nil || c.ListFilesErr != nil {
+		return nil, cmp.Or(c.ListFilesErr, c.Err)
 	}
 
 	os.MkdirAll(filepath.Join(c.root, dir), 0777)
@@ -113,8 +118,8 @@ func (c *MockClient) ListFiles(dir string) ([]string, error) {
 }
 
 func (c *MockClient) Walk(dir string, fn fs.WalkDirFunc) error {
-	if c.WalkErr != nil {
-		return c.WalkErr
+	if c.Err != nil || c.WalkErr != nil {
+		return cmp.Or(c.WalkErr, c.Err)
 	}
 
 	d, err := filepath.Abs(filepath.Join(c.root, dir))
