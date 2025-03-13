@@ -24,11 +24,12 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
+	config := go_ftp.ClientConfig{
 		Hostname: "127.0.0.1:2121",
 		Username: "admin",
 		Password: "123456",
-	})
+	}
+	client, err := go_ftp.NewClient(config)
 	require.NotNil(t, client)
 	require.NoError(t, err)
 
@@ -127,6 +128,55 @@ func TestClient(t *testing.T) {
 		require.ErrorContains(t, err, "retrieving new.txt failed: 551 File not available")
 	})
 
+	t.Run("mkdir and upload", func(t *testing.T) {
+		client, err := go_ftp.NewClient(go_ftp.ClientConfig{
+			Hostname: config.Hostname,
+			Username: config.Username,
+			Password: config.Password,
+
+			CreateUploadDirectories: true,
+		})
+		require.NotNil(t, client)
+		require.NoError(t, err)
+
+		// Make sure we've delted newdir from any previous test runs
+		require.NoError(t, os.RemoveAll(filepath.Join("testdata", "ftp-server", "newdir")))
+
+		// Upload files into new directories
+		err = client.UploadFile("newdir/first.txt", io.NopCloser(strings.NewReader("first newdir data")))
+		require.NoError(t, err)
+
+		err = client.UploadFile("newdir/a/second.txt", io.NopCloser(strings.NewReader("second newdir data")))
+		require.NoError(t, err)
+
+		err = client.UploadFile("newdir/a/b/third.txt", io.NopCloser(strings.NewReader("third newdir data")))
+		require.NoError(t, err)
+
+		// read all files
+		file, err := client.Open("newdir/first.txt")
+		require.NoError(t, err)
+
+		bs, err := io.ReadAll(file)
+		require.NoError(t, err)
+		require.Equal(t, "first newdir data", string(bs))
+
+		// second file
+		file, err = client.Open("newdir/a/second.txt")
+		require.NoError(t, err)
+
+		bs, err = io.ReadAll(file)
+		require.NoError(t, err)
+		require.Equal(t, "second newdir data", string(bs))
+
+		// third file
+		file, err = client.Open("newdir/a/b/third.txt")
+		require.NoError(t, err)
+
+		bs, err = io.ReadAll(file)
+		require.NoError(t, err)
+		require.Equal(t, "third newdir data", string(bs))
+	})
+
 	t.Run("delete", func(t *testing.T) {
 		err := client.Delete("/missing.txt")
 		require.NoError(t, err)
@@ -217,6 +267,7 @@ func TestClient(t *testing.T) {
 			"archive", "archive/old.txt", "archive/empty2.txt",
 			"with-empty", "with-empty/EMPTY1.txt", "with-empty/empty_file2.txt",
 			"with-empty/data.txt", "with-empty/data2.txt",
+			"newdir", "newdir/first.txt", "newdir/a", "newdir/a/second.txt", "newdir/a/b", "newdir/a/b/third.txt",
 		})
 	})
 
@@ -248,6 +299,7 @@ func TestClient(t *testing.T) {
 			"bigdata", "bigdata/large.txt",
 			"archive", "archive/old.txt", "archive/empty2.txt",
 			"Upper", "Upper/names.txt",
+			"newdir", "newdir/first.txt", "newdir/a", "newdir/a/second.txt", "newdir/a/b", "newdir/a/b/third.txt",
 		})
 	})
 

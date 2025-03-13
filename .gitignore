@@ -24,3 +24,6 @@ go.work
 coverage.txt
 gitleaks.tar.gz
 /lint-project.sh
+
+/testdata/ftp-server/newdir/
+/testdata/vsftpd-server/

@@ -32,6 +32,8 @@ type ClientConfig struct {
 	CAFile      string
 
 	TLSConfig *tls.Config
+
+	CreateUploadDirectories bool
 }
 
 type Client interface {
@@ -317,7 +319,7 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 
 	dir, filename := filepath.Split(path)
 	if dir != "" {
-		// Jump to previous directory after command is done
+		// Record the current directory we will jump back to after
 		wd, err := conn.CurrentDir()
 		if err != nil {
 			return err
@@ -328,6 +330,14 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 				err = fmt.Errorf("FTP: problem uploading %s: %w", filename, cleanupErr)
 			}
 		}(wd)
+
+		// Create any directories if needed
+		if cc.cfg.CreateUploadDirectories {
+			err := conn.MakeDir(dir)
+			if err != nil {
+				return fmt.Errorf("FTP: mkdir %s (from %s) failed: %w", dir, wd, err)
+			}
+		}
 
 		// Move into directory to run the command
 		if err := conn.ChangeDir(dir); err != nil {
