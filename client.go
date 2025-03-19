@@ -153,10 +153,14 @@ func (cc *client) Ping() error {
 
 	conn, err := cc.connection()
 	if err != nil {
-		return err
+		return fmt.Errorf("get connection for ping: %w", err)
 	}
 
-	return conn.NoOp()
+	err = conn.NoOp()
+	if err != nil {
+		return fmt.Errorf("ping: %w", err)
+	}
+	return nil
 }
 
 func (cc *client) Close() error {
@@ -169,9 +173,13 @@ func (cc *client) Close() error {
 
 	conn, err := cc.connection()
 	if err != nil {
-		return err
+		return fmt.Errorf("get connection for close: %w", err)
 	}
-	return conn.Quit()
+	err = conn.Quit()
+	if err != nil {
+		return fmt.Errorf("close: %w", err)
+	}
+	return nil
 }
 
 // Open will return the contents at path and consume the entire file contents.
@@ -291,12 +299,12 @@ func (cc *client) Delete(path string) error {
 
 	conn, err := cc.connection()
 	if err != nil {
-		return err
+		return fmt.Errorf("get connection for delete: %w", err)
 	}
 
 	err = conn.Delete(path)
 	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-		return err
+		return fmt.Errorf("delete %s failed: %w", path, err)
 	}
 	return nil
 }
@@ -312,7 +320,7 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 
 	conn, err := cc.connection()
 	if err != nil {
-		return err
+		return fmt.Errorf("getting connnection for upload: %w", err)
 	}
 
 	dir, filename := filepath.Split(path)
@@ -320,7 +328,7 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 		// Jump to previous directory after command is done
 		wd, err := conn.CurrentDir()
 		if err != nil {
-			return err
+			return fmt.Errorf("getting current dir for upload: %w", err)
 		}
 		defer func(previous string) {
 			// Return to our previous directory when initially called
@@ -331,13 +339,17 @@ func (cc *client) UploadFile(path string, contents io.ReadCloser) (err error) {
 
 		// Move into directory to run the command
 		if err := conn.ChangeDir(dir); err != nil {
-			return err
+			return fmt.Errorf("change dir for upload: %w", err)
 		}
 	}
 
 	// Write file contents into path
 	// Take the base of f.Filename and our (out of band) OutboundPath to avoid accepting a write like '../../../../etc/passwd'.
-	return conn.Stor(filename, contents)
+	err = conn.Stor(filename, contents)
+	if err != nil {
+		return fmt.Errorf("upload %s (in %s) failed: %w", filename, dir, err)
+	}
+	return nil
 }
 
 // ListFiles will return the paths of files within dir. Paths are returned as locations from dir,
@@ -402,14 +414,14 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 
 	conn, err := cc.connection()
 	if err != nil {
-		return err
+		return fmt.Errorf("get connection for walk: %w", err)
 	}
 
 	if dir != "" && dir != "." {
 		// Jump to previous directory after command is done
 		wd, err := conn.CurrentDir()
 		if err != nil {
-			return err
+			return fmt.Errorf("current dir for walk: %w", err)
 		}
 		defer func(previous string) {
 			// Return to our previous directory when initially called
@@ -420,7 +432,7 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 
 		// Move into directory to run the command
 		if err := conn.ChangeDir(dir); err != nil {
-			return err
+			return fmt.Errorf("change dir for walk: %w", err)
 		}
 	}
 
