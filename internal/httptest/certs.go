@@ -26,7 +26,7 @@ func GrabConnectionCertificates(t *testing.T, addr string) (string, error) {
 	}
 	defer conn.Close()
 
-	fd, err := os.CreateTemp("", "conn-certs")
+	fd, err := os.CreateTemp(t.TempDir(), "conn-certs")
 	require.NoError(t, err)
 
 	// Write x509 certs to disk
