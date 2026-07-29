@@ -2,12 +2,12 @@ module github.com/moov-io/go-ftp
 
 go 1.25.0
 
-toolchain go1.26.3
+toolchain go1.26.5
 
 require (
-	github.com/jlaffaye/ftp v0.2.0
+	github.com/jlaffaye/ftp v0.2.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.22.0
 )
 
 require (
