@@ -124,7 +124,7 @@ func TestClient(t *testing.T) {
 
 		file, err = client.Open("new.txt")
 		require.Nil(t, file)
-		require.ErrorContains(t, err, "retrieving new.txt failed: 551 File not available")
+		require.ErrorContains(t, err, "retrieving new.txt failed: 551 \"File not available\"")
 	})
 
 	t.Run("delete", func(t *testing.T) {
@@ -268,20 +268,20 @@ func TestClientErrors(t *testing.T) {
 
 	t.Run("open", func(t *testing.T) {
 		file, err := client.Open("not-found.txt")
-		require.ErrorContains(t, err, "551 File not available")
+		require.ErrorContains(t, err, "551 \"File not available\"")
 		require.Nil(t, file)
 	})
 
 	t.Run("reader", func(t *testing.T) {
 		file, err := client.Reader("not-found.txt")
-		require.ErrorContains(t, err, "551 File not available")
+		require.ErrorContains(t, err, "551 \"File not available\"")
 		require.Nil(t, file)
 	})
 
 	t.Run("upload", func(t *testing.T) {
 		body := io.NopCloser(strings.NewReader("no data"))
 		err := client.UploadFile("dir/does/not/exist.txt", body)
-		require.ErrorContains(t, err, "550 Directory change to /dir/does/not failed: lstat /data/dir/does/not: no such file or directory")
+		require.ErrorContains(t, err, "550 \"Directory change to /dir/does/not failed: lstat /data/dir/does/not: no such file or directory\"")
 	})
 
 	t.Run("list", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestClientErrors(t *testing.T) {
 			found = append(found, path)
 			return nil
 		})
-		require.ErrorContains(t, err, "550 Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory")
+		require.ErrorContains(t, err, "550 \"Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory\"")
 		require.Empty(t, found)
 	})
 
@@ -310,9 +310,9 @@ func TestClientFailure(t *testing.T) {
 		Password: "wrong",
 	})
 	require.NotNil(t, client)
-	require.ErrorContains(t, err, "ftp connect: 530 Incorrect password, not logged in")
+	require.ErrorContains(t, err, "ftp connect: 530 \"Incorrect password, not logged in\"")
 
-	require.ErrorContains(t, client.Ping(), "530 Incorrect password, not logged in")
+	require.ErrorContains(t, client.Ping(), "530 \"Incorrect password, not logged in\"")
 	require.NoError(t, client.Close())
 }
 
