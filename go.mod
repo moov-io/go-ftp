@@ -2,7 +2,7 @@ module github.com/moov-io/go-ftp
 
 go 1.25.0
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/jlaffaye/ftp v0.2.2
