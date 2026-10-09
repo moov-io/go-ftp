@@ -7,7 +7,7 @@ toolchain go1.27.2
 require (
 	github.com/jlaffaye/ftp v0.2.4
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 )
 
 require (
