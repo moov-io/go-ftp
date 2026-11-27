@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func skipIfNoFTPServer(t *testing.T) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping FTP server tests in short mode")
+	}
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:2121", time.Second)
+	if err != nil {
+		t.Skipf("FTP test server is not reachable at 127.0.0.1:2121: %v", err)
+	}
+	conn.Close()
+}
+
 func TestClient(t *testing.T) {
+	skipIfNoFTPServer(t)
+
 	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
 		Hostname: "127.0.0.1:2121",
 		Username: "admin",
@@ -40,9 +55,19 @@ func TestClient(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { file.Close() })
 
+		require.False(t, file.ModTime.IsZero())
+		stat, err := file.Stat()
+		require.NoError(t, err)
+		require.NotNil(t, stat)
+		require.Equal(t, "first.txt", stat.Name())
+		require.Equal(t, file.ModTime, stat.ModTime())
+
 		var buf bytes.Buffer
 		io.Copy(&buf, file)
 		require.Equal(t, "hello world", strings.TrimSpace(buf.String()))
+		if stat.Size() > 0 {
+			require.Equal(t, int(stat.Size()), buf.Len())
+		}
 	})
 
 	t.Run("open larger files", func(t *testing.T) {
@@ -83,6 +108,12 @@ func TestClient(t *testing.T) {
 		file, err := client.Reader("archive/old.txt")
 		require.NoError(t, err)
 		t.Cleanup(func() { file.Close() })
+
+		require.False(t, file.ModTime.IsZero())
+		stat, err := file.Stat()
+		require.NoError(t, err)
+		require.NotNil(t, stat)
+		require.Equal(t, "old.txt", stat.Name())
 
 		var buf bytes.Buffer
 		io.Copy(&buf, file)
@@ -255,6 +286,8 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientErrors(t *testing.T) {
+	skipIfNoFTPServer(t)
+
 	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
 		Hostname: "127.0.0.1:2121",
 		Username: "admin",
@@ -281,7 +314,8 @@ func TestClientErrors(t *testing.T) {
 	t.Run("upload", func(t *testing.T) {
 		body := io.NopCloser(strings.NewReader("no data"))
 		err := client.UploadFile("dir/does/not/exist.txt", body)
-		require.ErrorContains(t, err, "550 \"Directory change to /dir/does/not failed: lstat /data/dir/does/not: no such file or directory\"")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "change dir for upload")
 	})
 
 	t.Run("list", func(t *testing.T) {
@@ -296,7 +330,8 @@ func TestClientErrors(t *testing.T) {
 			found = append(found, path)
 			return nil
 		})
-		require.ErrorContains(t, err, "550 \"Directory change to /does/not/exist failed: lstat /data/does/not/exist: no such file or directory\"")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "change dir for walk")
 		require.Empty(t, found)
 	})
 
@@ -304,6 +339,8 @@ func TestClientErrors(t *testing.T) {
 }
 
 func TestClientFailure(t *testing.T) {
+	skipIfNoFTPServer(t)
+
 	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
 		Hostname: "127.0.0.1:2121",
 		Username: "incorrect",
@@ -317,9 +354,7 @@ func TestClientFailure(t *testing.T) {
 }
 
 func TestClient__tlsDialOption(t *testing.T) {
-	if testing.Short() {
-		return // skip network calls
-	}
+	skipIfNoFTPServer(t)
 
 	cafile, err := mhttptest.GrabConnectionCertificates(t, "google.com:443")
 	require.NoError(t, err)

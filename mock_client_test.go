@@ -8,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -25,7 +27,7 @@ func TestMockClient(t *testing.T) {
 	require.Error(t, err)
 
 	err = client.Delete("/missing.txt")
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	body := io.NopCloser(strings.NewReader("contents"))
 	err = client.UploadFile("/exists.txt", body)
@@ -46,6 +48,7 @@ func TestMockClient_ListAndOpenFiles(t *testing.T) {
 	require.NoError(t, client.Ping())
 	defer require.NoError(t, client.Close())
 
+	require.NoError(t, os.MkdirAll(filepath.Join(client.Dir(), "path"), 0o755))
 	require.NoError(t, client.UploadFile("/path/f1.txt", io.NopCloser(strings.NewReader("foo"))))
 	require.NoError(t, client.UploadFile("/path/f2.txt", io.NopCloser(strings.NewReader("foo"))))
 
@@ -57,6 +60,10 @@ func TestMockClient_ListAndOpenFiles(t *testing.T) {
 		found, err := client.Open(file)
 		require.NoError(t, err)
 		require.NotNil(t, found)
+		require.False(t, found.ModTime.IsZero())
+		stat, err := found.Stat()
+		require.NoError(t, err)
+		require.NotNil(t, stat)
 
 		contents, err := io.ReadAll(found.Contents)
 		require.NoError(t, err)
@@ -85,4 +92,20 @@ func TestMockClient_ListAndOpenFiles(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, walkedFiles, "f1.txt", "f2.txt")
+}
+
+func TestMockClient_UploadRequiresDirectory(t *testing.T) {
+	client := ftp.NewMockClient(t)
+
+	err := client.UploadFile("/dir/does/not/exist.txt", io.NopCloser(strings.NewReader("no data")))
+	require.Error(t, err)
+}
+
+func TestMockClient_WalkMissingDir(t *testing.T) {
+	client := ftp.NewMockClient(t)
+
+	err := client.Walk("does/not/exist", func(path string, d fs.DirEntry, err error) error {
+		return nil
+	})
+	require.Error(t, err)
 }

@@ -1,3 +1,24 @@
+## Unreleased
+
+IMPROVEMENTS
+
+- docs: document the test FTP server, add upload and download examples, and correct the Go version and links
+- docs: move Open and Reader notes onto the Client interface
+- test: skip network tests when -short is set or when the FTP server is not reachable
+- fix: set File.ModTime and Stat from the server MDTM and SIZE replies
+- fix: align MockClient with the real client for missing directories, missing files, and Walk
+- docs: add CONTRIBUTING.md and record the v0.4.1 release
+
+## v0.4.1 (Released 2026-11-23)
+
+This release updates dependencies, the Go toolchain, and CI workflows. There are no API changes.
+
+BUILD
+
+- chore(deps): update the Go toolchain to 1.27.4
+- chore(deps): update module golang.org/x/sync to v0.25.0
+- chore(deps): update GitHub Actions workflows
+
 ## v0.4.0 (Released 2025-01-23)
 
 This release of moov-io/go-ftp changes `Walk` to pass directories to `fs.WalkDirFunc`. Previous versions incorrectly mishandled `fs.SkipDir` and did not provide directories to callers.

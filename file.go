@@ -12,13 +12,14 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-// File represents a fs.File object of a location on a SFTP server.
+// File represents an fs.File object for a file on an FTP server.
 type File struct {
 	Filename string
 	Contents io.ReadCloser
 
-	// ModTime is a timestamp of when the last modification occurred
-	// to this file. The default will be the current UTC time.
+	// ModTime is the last modification time of the file. Open and Reader set
+	// this from the server MDTM response when the server supports it. If the
+	// server does not provide a time, ModTime is the current UTC time.
 	ModTime time.Time
 
 	fileinfo fs.FileInfo
@@ -90,3 +91,18 @@ func (e Entry) Type() fs.FileMode {
 func (e Entry) Info() (fs.FileInfo, error) {
 	return nil, nil
 }
+
+// fileInfo implements fs.FileInfo for a file on an FTP server.
+type fileInfo struct {
+	name    string
+	size    int64
+	mode    fs.FileMode
+	modTime time.Time
+}
+
+func (fi fileInfo) Name() string       { return fi.name }
+func (fi fileInfo) Size() int64        { return fi.size }
+func (fi fileInfo) Mode() fs.FileMode  { return fi.mode }
+func (fi fileInfo) ModTime() time.Time { return fi.modTime }
+func (fi fileInfo) IsDir() bool        { return fi.mode.IsDir() }
+func (fi fileInfo) Sys() any           { return nil }
