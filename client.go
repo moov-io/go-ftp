@@ -27,6 +27,8 @@ type ClientConfig struct {
 	Username string
 	Password string
 
+	// Timeout is the limit for the initial connection. A zero value means the
+	// client waits with no limit.
 	Timeout     time.Duration
 	DisableEPSV bool
 	CAFile      string
@@ -38,13 +40,41 @@ type Client interface {
 	Ping() error
 	Close() error
 
+	// Open returns the file at path and reads the entire contents into memory.
+	// Open can use a large amount of memory for large files. Prefer Reader when
+	// you want to stream the file.
 	Open(path string) (*File, error)
+
+	// Reader opens the file at path and returns a stream of its contents.
+	// Callers must close the returned File.
+	//
+	// Network errors can occur while you read, because the library streams the
+	// file from the FTP server. The client does not support more than one open
+	// reader at a time.
 	Reader(path string) (*File, error)
 
+	// Delete removes the file at path.
 	Delete(path string) error
+
+	// UploadFile writes contents to path. The parent directory must already
+	// exist on the server. UploadFile always closes contents.
 	UploadFile(path string, contents io.ReadCloser) error
 
+	// ListFiles returns the files in dir. It does not list files in
+	// subdirectories. Use Walk for a recursive listing.
+	//
+	// The returned paths use the same style as dir: ListFiles("returns")
+	// returns "returns/RET1.ach", and ListFiles("/returns") returns
+	// "/returns/RET1.ach". Comparisons are case-insensitive, but the results
+	// use the exact names from the server.
 	ListFiles(dir string) ([]string, error)
+
+	// Walk walks the directory tree at dir, including subdirectories, and
+	// calls fn for each file and directory. Walk does not call fn for dir
+	// itself.
+	//
+	// Follow the docs for fs.WalkDirFunc for traversal details. Walk accepts
+	// fs.SkipDir so that it does not process a directory.
 	Walk(dir string, fn fs.WalkDirFunc) error
 }
 
@@ -182,8 +212,7 @@ func (cc *client) Close() error {
 	return nil
 }
 
-// Open will return the contents at path and consume the entire file contents.
-// WARNING: This method can use a lot of memory by consuming the entire file into memory.
+// Open implements Client.
 func (cc *client) Open(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -213,6 +242,8 @@ func (cc *client) Open(path string) (*File, error) {
 		}
 	}
 
+	modTime, info := fileMetadata(conn, filename)
+
 	resp, err := conn.Retr(filename)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving %s failed: %w", path, err)
@@ -226,14 +257,12 @@ func (cc *client) Open(path string) (*File, error) {
 	return &File{
 		Filename: filepath.Base(path),
 		Contents: data,
+		ModTime:  modTime,
+		fileinfo: info,
 	}, nil
 }
 
-// Reader will open the file at path and provide a reader to access its contents.
-// Callers need to close the returned Contents.
-//
-// Callers should be aware that network errors while reading can occur since contents
-// are streamed from the FTP server. Having multiple open readers is not supported.
+// Reader implements Client.
 func (cc *client) Reader(path string) (*File, error) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -269,6 +298,8 @@ func (cc *client) Reader(path string) (*File, error) {
 			return nil, err
 		}
 	}
+
+	file.ModTime, file.fileinfo = fileMetadata(conn, filename)
 
 	resp, err := conn.Retr(filename)
 	if err != nil {
@@ -476,6 +507,22 @@ func (cc *client) Walk(dir string, fn fs.WalkDirFunc) error {
 		}
 	}
 	return nil
+}
+
+func fileMetadata(conn *ftp.ServerConn, name string) (time.Time, fs.FileInfo) {
+	modTime := time.Now().UTC()
+	if mt, err := conn.GetTime(name); err == nil && !mt.IsZero() {
+		modTime = mt.UTC()
+	}
+	var size int64
+	if n, err := conn.FileSize(name); err == nil {
+		size = n
+	}
+	return modTime, fileInfo{
+		name:    filepath.Base(name),
+		size:    size,
+		modTime: modTime,
+	}
 }
 
 func readResponse(resp *ftp.Response) (io.ReadCloser, error) {

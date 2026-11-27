@@ -14,6 +14,14 @@ import (
 	"testing"
 )
 
+// MockClient is an in-memory Client that stores files in a temporary directory.
+// NewMockClient requires a *testing.T and is intended for tests.
+//
+// The mock matches the real client in these cases:
+//   - UploadFile does not create missing parent directories
+//   - Delete of a missing file returns nil
+//   - Open and Reader set Filename, ModTime, and Stat
+//   - Walk does not call fn for the root directory itself
 type MockClient struct {
 	root string
 
@@ -69,10 +77,17 @@ func (c *MockClient) Open(path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
 	_, name := filepath.Split(path)
 	return &File{
 		Filename: name,
 		Contents: file,
+		ModTime:  info.ModTime(),
+		fileinfo: info,
 	}, nil
 }
 
@@ -80,20 +95,32 @@ func (c *MockClient) Delete(path string) error {
 	if c.Err != nil || c.DeleteErr != nil {
 		return cmp.Or(c.DeleteErr, c.Err)
 	}
-	return os.Remove(filepath.Join(c.root, path))
+	err := os.Remove(filepath.Join(c.root, path))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func (c *MockClient) UploadFile(path string, contents io.ReadCloser) error {
+	if contents != nil {
+		defer contents.Close()
+	}
 	if c.Err != nil || c.UploadFileErr != nil {
 		return cmp.Or(c.UploadFileErr, c.Err)
 	}
 
 	dir, _ := filepath.Split(path)
-	if err := os.MkdirAll(filepath.Join(c.root, dir), 0777); err != nil {
-		return err
+	if dir != "" && dir != string(os.PathSeparator) {
+		if _, err := os.Stat(filepath.Join(c.root, dir)); err != nil {
+			return err
+		}
 	}
 
-	bs, _ := io.ReadAll(contents)
+	bs, err := io.ReadAll(contents)
+	if err != nil {
+		return err
+	}
 
 	return os.WriteFile(filepath.Join(c.root, path), bs, 0600)
 }
@@ -126,7 +153,15 @@ func (c *MockClient) Walk(dir string, fn fs.WalkDirFunc) error {
 	if err != nil {
 		return err
 	}
-	os.MkdirAll(d, 0777)
+	if _, err := os.Stat(d); err != nil {
+		return err
+	}
 
-	return fs.WalkDir(os.DirFS(d), ".", fn)
+	// Skip the walk root itself so the mock matches the real client.
+	return fs.WalkDir(os.DirFS(d), ".", func(path string, entry fs.DirEntry, err error) error {
+		if path == "." {
+			return nil
+		}
+		return fn(path, entry, err)
+	})
 }

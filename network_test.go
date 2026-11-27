@@ -13,9 +13,7 @@ import (
 )
 
 func TestNetwork(t *testing.T) {
-	if testing.Short() {
-		t.Skip("-short flag was provided")
-	}
+	skipIfNoFTPServer(t)
 
 	client, err := go_ftp.NewClient(go_ftp.ClientConfig{
 		Hostname: "127.0.0.1:2121",
